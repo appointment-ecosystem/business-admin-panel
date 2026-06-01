@@ -9,8 +9,7 @@ import BusinessProfilePage from '@/pages/business/BusinessProfilePage';
 import BusinessServicesPage from '@/pages/business/BusinessServicesPage';
 import BusinessServiceFormPage from '@/pages/business/BusinessServiceFormPage';
 import BusinessStaffPage from '@/pages/business/BusinessStaffPage';
-import BusinessStaffNewPage from '@/pages/business/BusinessStaffNewPage';
-import BusinessStaffDetailPage from '@/pages/business/BusinessStaffDetailPage';
+import BusinessStaffFormPage from '@/pages/business/BusinessStaffFormPage';
 import BusinessWorkingHoursPage from '@/pages/business/BusinessWorkingHoursPage';
 import BusinessAppointmentsPage from '@/pages/business/BusinessAppointmentsPage';
 import BusinessReviewsPage from '@/pages/business/BusinessReviewsPage';
@@ -68,11 +67,11 @@ export const router = createBrowserRouter([
           },
           {
             path: 'staff/new',
-            element: <BusinessStaffNewPage />,
+            element: <BusinessStaffFormPage />,
           },
           {
             path: 'staff/:id',
-            element: <BusinessStaffDetailPage />,
+            element: <BusinessStaffFormPage />,
           },
           {
             path: 'working-hours',

@@ -9,6 +9,7 @@ import {
   XCircle,
   type LucideIcon,
 } from 'lucide-react';
+import { extractArray } from '@/api/axios';
 import { getBusinessAppointments } from '@/api/business';
 import { useMyBusiness } from '@/hooks/useMyBusiness';
 import type { ApiError } from '@/types';
@@ -217,11 +218,11 @@ export default function BusinessDashboardPage() {
   });
 
   const todayAppointments = useMemo(() => {
-    if (!appointmentsQuery.data) {
-      return [];
-    }
-    return filterTodayAppointments(appointmentsQuery.data, today);
-  }, [appointmentsQuery.data, today]);
+    const appointments = extractArray<AppointmentSummary>(
+      appointmentsQuery.data?.data,
+    );
+    return filterTodayAppointments(appointments, today);
+  }, [appointmentsQuery.data?.data, today]);
 
   const summary = useMemo(() => {
     const totalToday = todayAppointments.length;

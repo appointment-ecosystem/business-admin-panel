@@ -13,8 +13,10 @@ import {
   getServices,
   updateService,
 } from '@/api/business';
+import { extractArray } from '@/api/axios';
 import { useMyBusiness } from '@/hooks/useMyBusiness';
 import type { ApiError } from '@/types';
+import type { Service } from '@/types/business';
 import { Button } from '@/components/ui/button';
 import { Input } from '@/components/ui/input';
 import { Label } from '@/components/ui/label';
@@ -41,7 +43,8 @@ const serviceSchema = z.object({
   currency: z.string().optional(),
 });
 
-type ServiceFormValues = z.infer<typeof serviceSchema>;
+type ServiceFormInput = z.input<typeof serviceSchema>;
+type ServiceFormValues = z.output<typeof serviceSchema>;
 
 function getErrorMessage(error: unknown, fallback: string): string {
   if (axios.isAxiosError(error)) {
@@ -81,18 +84,19 @@ export default function BusinessServiceFormPage() {
   });
 
   const existingService = useMemo(() => {
-    if (!isEditMode || !serviceId || !servicesQuery.data) {
+    const services = extractArray<Service>(servicesQuery.data?.data);
+    if (!isEditMode || !serviceId || services.length === 0) {
       return null;
     }
-    return servicesQuery.data.find((service) => service.id === serviceId) ?? null;
-  }, [isEditMode, serviceId, servicesQuery.data]);
+    return services.find((service) => service.id === serviceId) ?? null;
+  }, [isEditMode, serviceId, servicesQuery.data?.data]);
 
   const {
     register,
     handleSubmit,
     reset,
     formState: { errors, isSubmitting },
-  } = useForm<ServiceFormValues>({
+  } = useForm<ServiceFormInput, unknown, ServiceFormValues>({
     resolver: zodResolver(serviceSchema),
     defaultValues: {
       name: '',
@@ -172,7 +176,7 @@ export default function BusinessServiceFormPage() {
     isEditMode &&
     !servicesQuery.isLoading &&
     !servicesQuery.isError &&
-    servicesQuery.data &&
+    extractArray<Service>(servicesQuery.data?.data).length > 0 &&
     !existingService;
 
   return (

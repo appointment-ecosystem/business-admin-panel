@@ -24,7 +24,9 @@ export interface AuthUser {
   phone: string;
   email?: string;
   role: UserRole;
-  isActive: boolean;
+  isActive?: boolean;
+  phoneVerified?: boolean;
+  profilePhotoUrl?: string;
 }
 
 /** İşletme durumları */

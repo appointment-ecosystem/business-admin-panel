@@ -11,7 +11,7 @@ export function useMyBusiness() {
   });
 
   return {
-    business: query.data ?? null,
+    business: query.data?.data ?? null,
     isLoading: query.isLoading,
     isError: query.isError,
     error: query.error,

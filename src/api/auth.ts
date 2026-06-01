@@ -5,7 +5,9 @@ import type { ApiResponse, AuthUser } from '@/types';
 export interface LoginResponse {
   accessToken: string;
   refreshToken: string;
-  user: AuthUser;
+  tokenType: string;
+  userId: string;
+  role: string;
 }
 
 export interface RefreshTokenResponse {
@@ -16,29 +18,26 @@ export interface RefreshTokenResponse {
 export async function login(
   phone: string,
   password: string,
-): Promise<LoginResponse> {
-  const { data } = await api.post<ApiResponse<LoginResponse>>('/auth/login', {
+): Promise<ApiResponse<LoginResponse>> {
+  return api.post<unknown, ApiResponse<LoginResponse>>('/auth/login', {
     phone,
     password,
   });
-  return data.data;
 }
 
 export async function refreshToken(
   refreshTokenValue: string,
-): Promise<RefreshTokenResponse> {
-  const { data } = await api.post<ApiResponse<RefreshTokenResponse>>(
+): Promise<ApiResponse<RefreshTokenResponse>> {
+  return api.post<unknown, ApiResponse<RefreshTokenResponse>>(
     '/auth/refresh',
     { refreshToken: refreshTokenValue },
   );
-  return data.data;
 }
 
 export async function logout(): Promise<void> {
   await api.post('/auth/logout');
 }
 
-export async function getMe(): Promise<AuthUser> {
-  const { data } = await api.get<ApiResponse<AuthUser>>('/auth/me');
-  return data.data;
+export async function getMe(): Promise<ApiResponse<AuthUser>> {
+  return api.get<unknown, ApiResponse<AuthUser>>('/auth/me');
 }

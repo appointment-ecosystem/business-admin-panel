@@ -6,7 +6,7 @@ import { z } from 'zod';
 import axios from 'axios';
 import { useNavigate } from 'react-router-dom';
 import { toast } from 'sonner';
-import { login } from '@/api/auth';
+import { getMe, login } from '@/api/auth';
 import { useAuthStore } from '@/store/authStore';
 import type { ApiError, UserRole } from '@/types';
 import { Button } from '@/components/ui/button';
@@ -70,9 +70,17 @@ export default function LoginPage() {
   const onSubmit = async (values: LoginFormValues) => {
     setIsSubmitting(true);
     try {
-      const response = await login(values.phone, values.password);
-      setAuth(response.user, response.accessToken, response.refreshToken);
-      navigate(getDashboardPath(response.user.role), { replace: true });
+      const loginRes = await login(values.phone, values.password);
+      const { accessToken, refreshToken } = loginRes.data;
+
+      localStorage.setItem('access_token', accessToken);
+      localStorage.setItem('refresh_token', refreshToken);
+
+      const meRes = await getMe();
+      const user = meRes.data;
+
+      setAuth(user, accessToken, refreshToken);
+      navigate(getDashboardPath(user.role), { replace: true });
     } catch (error) {
       toast.error(getErrorMessage(error));
     } finally {

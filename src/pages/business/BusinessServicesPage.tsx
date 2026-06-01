@@ -9,6 +9,7 @@ import {
   deactivateService,
   getServices,
 } from '@/api/business';
+import { extractArray } from '@/api/axios';
 import { useMyBusiness } from '@/hooks/useMyBusiness';
 import type { ApiError } from '@/types';
 import type { Service } from '@/types/business';
@@ -149,7 +150,7 @@ export default function BusinessServicesPage() {
     },
     onSuccess: (updatedService) => {
       toast.success(
-        updatedService.isActive
+        updatedService.data.isActive
           ? 'Hizmet aktifleştirildi'
           : 'Hizmet pasifleştirildi',
       );
@@ -161,7 +162,7 @@ export default function BusinessServicesPage() {
     },
   });
 
-  const services = servicesQuery.data ?? [];
+  const services = extractArray<Service>(servicesQuery.data?.data);
   const isDeactivateAction = toggleTarget?.isActive ?? false;
 
   return (

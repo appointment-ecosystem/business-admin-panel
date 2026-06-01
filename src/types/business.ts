@@ -1,4 +1,4 @@
-// Bu dosya, işletme (business) modülüne ait TypeScript tip tanımlarını, profil, fotoğraf ve hizmet tiplerini içerir.
+// Bu dosya, işletme (business) modülüne ait TypeScript tip tanımlarını; profil, fotoğraf, hizmet, personel, çalışma saati ve tatil tiplerini içerir.
 
 /** İşletme durumu */
 export type BusinessStatus =
@@ -96,6 +96,67 @@ export interface ServiceRequest {
   currency?: string;
 }
 
+/** Personel */
+export interface Staff {
+  id: string;
+  businessId: string;
+  userId?: string;
+  fullName: string;
+  title?: string;
+  bio?: string;
+  profilePhotoUrl?: string;
+  isActive: boolean;
+  sortOrder: number;
+  services?: Service[];
+}
+
+/** Personel oluşturma/güncelleme isteği */
+export interface StaffRequest {
+  fullName: string;
+  title?: string;
+  bio?: string;
+}
+
+/** Personele hizmet atama isteği */
+export interface AssignServicesRequest {
+  serviceIds: string[];
+}
+
+/** Çalışma saati */
+export interface WorkingHour {
+  id: string;
+  businessId: string;
+  staffId?: string;
+  dayOfWeek: number;
+  openTime: string;
+  closeTime: string;
+  isClosed: boolean;
+}
+
+/** Çalışma saati güncelleme isteği */
+export interface WorkingHourRequest {
+  dayOfWeek: number;
+  openTime: string;
+  closeTime: string;
+  isClosed: boolean;
+}
+
+/** Tatil günü */
+export interface Holiday {
+  id: string;
+  businessId: string;
+  staffId?: string;
+  date: string;
+  reason?: string;
+}
+
+/** Tatil günü oluşturma isteği */
+export interface HolidayRequest {
+  date: string;
+  reason?: string;
+  staffId?: string;
+}
+
 /** Dashboard için randevu özeti */
 export interface AppointmentSummary {
   id: string;
@@ -107,4 +168,6 @@ export interface AppointmentSummary {
   status: AppointmentStatus;
   priceSnapshot: number;
   currency: string;
+  notes?: string;
+  cancellationReason?: string;
 }

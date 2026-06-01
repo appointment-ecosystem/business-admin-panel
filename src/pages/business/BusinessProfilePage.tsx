@@ -15,6 +15,7 @@ import {
   updateBusiness,
   uploadBusinessPhoto,
 } from '@/api/business';
+import { extractArray } from '@/api/axios';
 import { useMyBusiness } from '@/hooks/useMyBusiness';
 import type { ApiError } from '@/types';
 import type { BusinessPhoto } from '@/types/business';
@@ -200,7 +201,7 @@ function PhotoManagementSection({ businessId }: PhotoManagementSectionProps) {
     event.target.value = '';
   };
 
-  const photos = photosQuery.data ?? [];
+  const photos = extractArray<BusinessPhoto>(photosQuery.data?.data);
 
   return (
     <Card>
@@ -341,7 +342,7 @@ export default function BusinessProfilePage() {
   });
 
   useEffect(() => {
-    const detail = businessDetailQuery.data;
+    const detail = businessDetailQuery.data?.data;
     const summary = business;
 
     if (!detail && !summary) {
@@ -356,7 +357,7 @@ export default function BusinessProfilePage() {
       website: detail?.website ?? '',
       addressLine: detail?.addressLine ?? summary?.address_line ?? '',
     });
-  }, [business, businessDetailQuery.data, reset]);
+  }, [business, businessDetailQuery.data?.data, reset]);
 
   const updateMutation = useMutation({
     mutationFn: (values: ProfileFormValues) => {

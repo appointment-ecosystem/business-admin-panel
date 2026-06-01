@@ -43,7 +43,8 @@ export default function ProtectedRoute({ requiredRole }: ProtectedRouteProps) {
 
     const verifySession = async () => {
       try {
-        const me = await getMe();
+        const meRes = await getMe();
+        const me = meRes.data;
 
         if (!isMounted) {
           return;

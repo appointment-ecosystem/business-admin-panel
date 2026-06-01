@@ -11,6 +11,27 @@ const api = axios.create({
   baseURL: 'http://localhost:8080/api/v1',
 });
 
+// API'den gelen veriyi güvenli şekilde diziye çevirir.
+export function extractArray<T>(data: unknown): T[] {
+  if (Array.isArray(data)) {
+    return data;
+  }
+
+  if (data && typeof data === 'object') {
+    const record = data as Record<string, unknown>;
+
+    if (Array.isArray(record.content)) {
+      return record.content as T[];
+    }
+
+    if (Array.isArray(record.data)) {
+      return record.data as T[];
+    }
+  }
+
+  return [];
+}
+
 interface RefreshTokenResponse {
   accessToken: string;
   refreshToken?: string;
@@ -54,7 +75,7 @@ api.interceptors.request.use((config) => {
 });
 
 api.interceptors.response.use(
-  (response) => response,
+  (response) => response.data,
   async (error: AxiosError) => {
     const originalRequest = error.config as InternalAxiosRequestConfig & {
       _retry?: boolean;
