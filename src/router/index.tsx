@@ -7,8 +7,7 @@ import AdminLayout from '@/components/layout/AdminLayout';
 import BusinessDashboardPage from '@/pages/business/BusinessDashboardPage';
 import BusinessProfilePage from '@/pages/business/BusinessProfilePage';
 import BusinessServicesPage from '@/pages/business/BusinessServicesPage';
-import BusinessServiceNewPage from '@/pages/business/BusinessServiceNewPage';
-import BusinessServiceDetailPage from '@/pages/business/BusinessServiceDetailPage';
+import BusinessServiceFormPage from '@/pages/business/BusinessServiceFormPage';
 import BusinessStaffPage from '@/pages/business/BusinessStaffPage';
 import BusinessStaffNewPage from '@/pages/business/BusinessStaffNewPage';
 import BusinessStaffDetailPage from '@/pages/business/BusinessStaffDetailPage';
@@ -57,11 +56,11 @@ export const router = createBrowserRouter([
           },
           {
             path: 'services/new',
-            element: <BusinessServiceNewPage />,
+            element: <BusinessServiceFormPage />,
           },
           {
             path: 'services/:id',
-            element: <BusinessServiceDetailPage />,
+            element: <BusinessServiceFormPage />,
           },
           {
             path: 'staff',
