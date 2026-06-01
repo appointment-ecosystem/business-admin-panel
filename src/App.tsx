@@ -1,8 +1,9 @@
-// Bu dosya, uygulamanın kök bileşenidir ve şu anda bir placeholder içerir.
-import React from 'react';
+// Bu dosya, uygulamanın kök bileşenidir ve RouterProvider ile rotaları bağlar.
+import { RouterProvider } from 'react-router-dom';
+import { router } from '@/router';
 
-const App: React.FC = () => {
-  return <div>Panel hazırlanıyor...</div>;
-};
+function App() {
+  return <RouterProvider router={router} />;
+}
 
 export default App;
