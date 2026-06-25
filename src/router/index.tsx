@@ -1,7 +1,7 @@
 // Bu dosya, uygulama rotalarını React Router v6 ile tanımlar.
 import { createBrowserRouter, Navigate } from 'react-router-dom';
 import LoginPage from '@/pages/auth/LoginPage';
-import ProtectedRoute from '@/router/ProtectedRoute';
+import ProtectedRoute, { OwnerOnlyRoute } from '@/router/ProtectedRoute';
 import BusinessLayout from '@/components/layout/BusinessLayout';
 import AdminLayout from '@/components/layout/AdminLayout';
 import BusinessDashboardPage from '@/pages/business/BusinessDashboardPage';
@@ -13,6 +13,7 @@ import BusinessStaffFormPage from '@/pages/business/BusinessStaffFormPage';
 import BusinessWorkingHoursPage from '@/pages/business/BusinessWorkingHoursPage';
 import BusinessAppointmentsPage from '@/pages/business/BusinessAppointmentsPage';
 import BusinessReviewsPage from '@/pages/business/BusinessReviewsPage';
+import BusinessCustomersPage from '@/pages/business/BusinessCustomersPage';
 import AdminDashboardPage from '@/pages/admin/AdminDashboardPage';
 import AdminBusinessesPage from '@/pages/admin/AdminBusinessesPage';
 import AdminBusinessDetailPage from '@/pages/admin/AdminBusinessDetailPage';
@@ -62,28 +63,38 @@ export const router = createBrowserRouter([
             element: <BusinessServiceFormPage />,
           },
           {
-            path: 'staff',
-            element: <BusinessStaffPage />,
-          },
-          {
-            path: 'staff/new',
-            element: <BusinessStaffFormPage />,
-          },
-          {
-            path: 'staff/:id',
-            element: <BusinessStaffFormPage />,
-          },
-          {
-            path: 'working-hours',
-            element: <BusinessWorkingHoursPage />,
-          },
-          {
             path: 'appointments',
             element: <BusinessAppointmentsPage />,
           },
           {
+            path: 'customers',
+            element: <BusinessCustomersPage />,
+          },
+          {
             path: 'reviews',
             element: <BusinessReviewsPage />,
+          },
+          // ===== SADECE BUSINESS_OWNER ERİŞEBİLİR =====
+          {
+            element: <OwnerOnlyRoute />,
+            children: [
+              {
+                path: 'staff',
+                element: <BusinessStaffPage />,
+              },
+              {
+                path: 'staff/new',
+                element: <BusinessStaffFormPage />,
+              },
+              {
+                path: 'staff/:id',
+                element: <BusinessStaffFormPage />,
+              },
+              {
+                path: 'working-hours',
+                element: <BusinessWorkingHoursPage />,
+              },
+            ],
           },
         ],
       },

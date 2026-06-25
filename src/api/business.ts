@@ -19,9 +19,8 @@ import type {
 } from '@/types/business';
 
 export interface GetBusinessAppointmentsParams {
-  date?: string;
-  startDate?: string;
-  endDate?: string;
+  rangeStart: string;
+  rangeEnd: string;
   status?: string;
 }
 

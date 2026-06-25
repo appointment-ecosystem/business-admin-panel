@@ -161,6 +161,7 @@ export interface HolidayRequest {
 export interface AppointmentSummary {
   id: string;
   customerName: string;
+  customerPhone?: string; // Backend'den userPhone olarak gelir
   serviceName: string;
   staffName?: string;
   startTime: string;

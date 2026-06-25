@@ -20,11 +20,31 @@ import {
   CardTitle,
 } from '@/components/ui/card';
 
+// Zod Doğrulama Şeması
+// Girilen değer @ içeriyorsa email, içermiyorsa Türk telefon numarası olarak doğrulanır
 const loginSchema = z.object({
-  phone: z
+  identifier: z
     .string()
-    .min(1, 'Telefon numarası zorunludur')
-    .min(10, 'Telefon numarası en az 10 karakter olmalıdır'),
+    .min(1, 'E-posta veya telefon numarası zorunludur')
+    .superRefine((val, ctx) => {
+      if (val.includes('@')) {
+        const emailRegex = /^[^\s@]+@[^\s@]+\.[^\s@]+$/;
+        if (!emailRegex.test(val)) {
+          ctx.addIssue({
+            code: z.ZodIssueCode.custom,
+            message: 'Lütfen geçerli bir e-posta adresi girin',
+          });
+        }
+      } else {
+        const digitsOnly = val.replace(/[\s\-()]/g, '');
+        if (!/^\d{10,}$/.test(digitsOnly)) {
+          ctx.addIssue({
+            code: z.ZodIssueCode.custom,
+            message: 'Lütfen geçerli bir telefon numarası girin (örn: 05551234567)',
+          });
+        }
+      }
+    }),
   password: z.string().min(6, 'Şifre en az 6 karakter olmalıdır'),
 });
 
@@ -40,11 +60,38 @@ function getDashboardPath(role: UserRole): string {
   return '/login';
 }
 
+// Backend hata mesajlarını Türkçeye çeviren yardımcı fonksiyon
+function translateErrorMessage(message: string): string {
+  const translations: Record<string, string> = {
+    'invalid credentials': 'E-posta/telefon veya şifre hatalı.',
+    'user not found': 'Bu bilgilere sahip bir kullanıcı bulunamadı.',
+    'account is disabled': 'Hesabınız devre dışı bırakılmıştır.',
+    'account is locked': 'Hesabınız kilitlenmiştir. Lütfen destek ile iletişime geçin.',
+    'too many login attempts': 'Çok fazla başarısız giriş denemesi. Lütfen daha sonra tekrar deneyin.',
+    'bad credentials': 'E-posta/telefon veya şifre hatalı.',
+    'email not verified': 'E-posta adresiniz doğrulanmamış. Lütfen gelen kutunuzu kontrol edin.',
+    'phone not verified': 'Telefon numaranız doğrulanmamış.',
+    'internal server error': 'Sunucu hatası oluştu. Lütfen daha sonra tekrar deneyin.',
+    'service unavailable': 'Hizmet şu anda kullanılamıyor. Lütfen daha sonra tekrar deneyin.',
+    'access denied': 'Bu panele erişim yetkiniz bulunmamaktadır.',
+    'unauthorized': 'Yetkisiz erişim. Lütfen tekrar giriş yapın.',
+  };
+
+  const lowerMessage = message.toLowerCase();
+  for (const [key, value] of Object.entries(translations)) {
+    if (lowerMessage.includes(key)) {
+      return value;
+    }
+  }
+
+  return message || 'Giriş başarısız. Lütfen tekrar deneyin.';
+}
+
 function getErrorMessage(error: unknown): string {
   if (axios.isAxiosError(error)) {
     const data = error.response?.data as ApiError | undefined;
     if (data?.message) {
-      return data.message;
+      return translateErrorMessage(data.message);
     }
   }
   return 'Giriş başarısız. Lütfen tekrar deneyin.';
@@ -62,7 +109,7 @@ export default function LoginPage() {
   } = useForm<LoginFormValues>({
     resolver: zodResolver(loginSchema),
     defaultValues: {
-      phone: '',
+      identifier: '',
       password: '',
     },
   });
@@ -70,7 +117,15 @@ export default function LoginPage() {
   const onSubmit = async (values: LoginFormValues) => {
     setIsSubmitting(true);
     try {
-      const loginRes = await login(values.phone, values.password);
+      const identifier = values.identifier.trim();
+      const isEmail = identifier.includes('@');
+
+      // API payload: @ içeriyorsa email, içermiyorsa phone
+      const loginRes = await login(
+        isEmail ? identifier : '',
+        isEmail ? '' : identifier.replace(/[\s\-()]/g, ''),
+        values.password,
+      );
       const { accessToken, refreshToken } = loginRes.data;
 
       localStorage.setItem('access_token', accessToken);
@@ -101,17 +156,17 @@ export default function LoginPage() {
         <CardContent>
           <form onSubmit={handleSubmit(onSubmit)} className="space-y-4">
             <div className="space-y-2">
-              <Label htmlFor="phone">Telefon</Label>
+              <Label htmlFor="identifier">E-posta veya Telefon</Label>
               <Input
-                id="phone"
-                type="tel"
-                placeholder="5xxxxxxxxx"
-                autoComplete="tel"
-                aria-invalid={Boolean(errors.phone)}
-                {...register('phone')}
+                id="identifier"
+                type="text"
+                placeholder="ornek@email.com veya 05xxxxxxxxx"
+                autoComplete="username"
+                aria-invalid={Boolean(errors.identifier)}
+                {...register('identifier')}
               />
-              {errors.phone && (
-                <p className="text-sm text-destructive">{errors.phone.message}</p>
+              {errors.identifier && (
+                <p className="text-sm text-destructive">{errors.identifier.message}</p>
               )}
             </div>
 

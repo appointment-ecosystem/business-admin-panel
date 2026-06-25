@@ -102,3 +102,22 @@ export default function ProtectedRoute({ requiredRole }: ProtectedRouteProps) {
 
   return <Outlet />;
 }
+
+/**
+ * OwnerOnlyRoute: Sadece BUSINESS_OWNER erişebilir.
+ * BUSINESS_EMPLOYEE girerse /business/dashboard'a yönlendirilir.
+ * Bu component BusinessLayout içindeki alt rotalarda kullanılır.
+ */
+export function OwnerOnlyRoute() {
+  const user = useAuthStore((state) => state.user);
+
+  if (!user) {
+    return <Navigate to="/login" replace />;
+  }
+
+  if (user.role === 'BUSINESS_EMPLOYEE') {
+    return <Navigate to="/business/dashboard" replace />;
+  }
+
+  return <Outlet />;
+}

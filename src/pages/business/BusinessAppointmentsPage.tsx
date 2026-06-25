@@ -1,12 +1,7 @@
 // Bu dosya, işletme randevularının takvim ve liste görünümü ile detay/aksiyon yönetimini içerir.
-import { useMemo, useState } from 'react';
+// Faz 13: API bug fix (rangeStart/rangeEnd), FullCalendar mobil uyarlama (timeGridDay), kart listesi
+import { useEffect, useMemo, useRef, useState } from 'react';
 import { useMutation, useQuery, useQueryClient } from '@tanstack/react-query';
-import {
-  createColumnHelper,
-  flexRender,
-  getCoreRowModel,
-  useReactTable,
-} from '@tanstack/react-table';
 import FullCalendar from '@fullcalendar/react';
 import dayGridPlugin from '@fullcalendar/daygrid';
 import timeGridPlugin from '@fullcalendar/timegrid';
@@ -15,6 +10,7 @@ import trLocale from '@fullcalendar/core/locales/tr';
 import type { DatesSetArg, EventClickArg, EventInput } from '@fullcalendar/core';
 import axios from 'axios';
 import { toast } from 'sonner';
+import { CalendarDays, List, Phone } from 'lucide-react';
 import {
   cancelAppointmentByBusiness,
   completeAppointment,
@@ -23,18 +19,20 @@ import {
 } from '@/api/appointments';
 import { extractArray } from '@/api/axios';
 import { getBusinessAppointments } from '@/api/business';
-import type { GetBusinessAppointmentsParams } from '@/api/business';
 import { useMyBusiness } from '@/hooks/useMyBusiness';
+import {
+  formatDateToYmd,
+  getTodayDateString,
+  toRangeEnd,
+  toRangeStart,
+} from '@/lib/dateUtils';
 import type { ApiError } from '@/types';
 import type { AppointmentStatus, AppointmentSummary } from '@/types/business';
 import { Button } from '@/components/ui/button';
 import { Input } from '@/components/ui/input';
 import { Label } from '@/components/ui/label';
 import { Textarea } from '@/components/ui/textarea';
-import {
-  Card,
-  CardContent,
-} from '@/components/ui/card';
+import { Card, CardContent } from '@/components/ui/card';
 import {
   Select,
   SelectContent,
@@ -50,14 +48,6 @@ import {
   DialogHeader,
   DialogTitle,
 } from '@/components/ui/dialog';
-import {
-  Table,
-  TableBody,
-  TableCell,
-  TableHead,
-  TableHeader,
-  TableRow,
-} from '@/components/ui/table';
 import { cn } from '@/lib/utils';
 
 type ViewMode = 'calendar' | 'list';
@@ -120,21 +110,6 @@ interface CalendarEventExtendedProps {
   appointment: AppointmentSummary;
 }
 
-function getTodayDateString(): string {
-  const now = new Date();
-  const year = now.getFullYear();
-  const month = String(now.getMonth() + 1).padStart(2, '0');
-  const day = String(now.getDate()).padStart(2, '0');
-  return `${year}-${month}-${day}`;
-}
-
-function formatDateToYmd(date: Date): string {
-  const year = date.getFullYear();
-  const month = String(date.getMonth() + 1).padStart(2, '0');
-  const day = String(date.getDate()).padStart(2, '0');
-  return `${year}-${month}-${day}`;
-}
-
 function formatDateTimeRange(startTime: string, endTime: string): string {
   const start = new Date(startTime);
   const end = new Date(endTime);
@@ -151,6 +126,24 @@ function formatDateTimeRange(startTime: string, endTime: string): string {
   const startPart = start.toLocaleTimeString('tr-TR', timeOptions);
   const endPart = end.toLocaleTimeString('tr-TR', timeOptions);
   return `${datePart}, ${startPart} - ${endPart}`;
+}
+
+function formatTimeOnly(startTime: string, endTime: string): string {
+  const timeOptions: Intl.DateTimeFormatOptions = {
+    hour: '2-digit',
+    minute: '2-digit',
+  };
+  const start = new Date(startTime).toLocaleTimeString('tr-TR', timeOptions);
+  const end = new Date(endTime).toLocaleTimeString('tr-TR', timeOptions);
+  return `${start} – ${end}`;
+}
+
+function formatDateShort(startTime: string): string {
+  return new Date(startTime).toLocaleDateString('tr-TR', {
+    day: 'numeric',
+    month: 'short',
+    weekday: 'short',
+  });
 }
 
 function formatPrice(amount: number, currency: string): string {
@@ -325,6 +318,18 @@ function AppointmentDetailDialog({
               {formatPrice(appointment.priceSnapshot, appointment.currency)}
             </span>
           </div>
+          {appointment.customerPhone && (
+            <div className="flex justify-between gap-4">
+              <span className="text-muted-foreground">Telefon</span>
+              <a
+                href={`tel:${appointment.customerPhone}`}
+                className="flex items-center gap-1 font-medium text-primary hover:underline"
+              >
+                <Phone className="size-3" />
+                {appointment.customerPhone}
+              </a>
+            </div>
+          )}
           {appointment.notes && (
             <div className="space-y-1">
               <span className="text-muted-foreground">Notlar</span>
@@ -354,20 +359,24 @@ function AppointmentDetailDialog({
           </div>
         )}
 
-        <DialogFooter className="flex-wrap gap-2 sm:justify-start">
+        {/* Aksiyon butonları — mobilde tam genişlik, xl boyut */}
+        <DialogFooter className="flex-col gap-2 sm:flex-row sm:flex-wrap sm:justify-start">
           {appointment.status === 'PENDING' && (
             <>
               <Button
                 type="button"
-                className="bg-blue-600 hover:bg-blue-700"
+                size="xl"
+                className="w-full bg-blue-600 hover:bg-blue-700 sm:w-auto"
                 disabled={isActionPending || !businessId}
                 onClick={() => actionMutation.mutate('confirm')}
               >
-                Onayla
+                ✓ Onayla
               </Button>
               <Button
                 type="button"
+                size="xl"
                 variant="destructive"
+                className="w-full sm:w-auto"
                 disabled={isActionPending || !businessId}
                 onClick={() => {
                   if (!showCancelForm) {
@@ -377,7 +386,7 @@ function AppointmentDetailDialog({
                   actionMutation.mutate('cancel');
                 }}
               >
-                {showCancelForm ? 'İptali Onayla' : 'İptal Et'}
+                {showCancelForm ? 'İptali Onayla' : '✕ İptal Et'}
               </Button>
             </>
           )}
@@ -386,15 +395,17 @@ function AppointmentDetailDialog({
             <>
               <Button
                 type="button"
-                className="bg-green-600 hover:bg-green-700"
+                size="xl"
+                className="w-full bg-green-600 hover:bg-green-700 sm:w-auto"
                 disabled={isActionPending || !businessId}
                 onClick={() => actionMutation.mutate('complete')}
               >
-                Tamamlandı
+                ✓ Tamamlandı
               </Button>
               <Button
                 type="button"
-                className="bg-purple-600 hover:bg-purple-700"
+                size="xl"
+                className="w-full bg-purple-600 hover:bg-purple-700 sm:w-auto"
                 disabled={isActionPending || !businessId}
                 onClick={() => actionMutation.mutate('no-show')}
               >
@@ -402,7 +413,9 @@ function AppointmentDetailDialog({
               </Button>
               <Button
                 type="button"
+                size="xl"
                 variant="destructive"
+                className="w-full sm:w-auto"
                 disabled={isActionPending || !businessId}
                 onClick={() => {
                   if (!showCancelForm) {
@@ -412,7 +425,7 @@ function AppointmentDetailDialog({
                   actionMutation.mutate('cancel');
                 }}
               >
-                {showCancelForm ? 'İptali Onayla' : 'İptal Et'}
+                {showCancelForm ? 'İptali Onayla' : '✕ İptal Et'}
               </Button>
             </>
           )}
@@ -422,11 +435,64 @@ function AppointmentDetailDialog({
   );
 }
 
-const columnHelper = createColumnHelper<AppointmentSummary>();
+/** Tek randevuyu liste kart görünümünde render eder (mobil + masaüstü uyumlu) */
+function AppointmentListCard({
+  appointment,
+  onSelect,
+}: {
+  appointment: AppointmentSummary;
+  onSelect: (a: AppointmentSummary) => void;
+}) {
+  return (
+    <div className="flex items-start justify-between gap-3 rounded-lg border bg-card p-4">
+      <div className="min-w-0 flex-1 space-y-1">
+        <div className="flex flex-wrap items-center gap-2">
+          <p className="font-semibold">{appointment.customerName}</p>
+          <StatusBadge status={appointment.status} />
+        </div>
+        <div className="flex flex-wrap gap-x-3 gap-y-0.5 text-sm text-muted-foreground">
+          <span>{formatDateShort(appointment.startTime)}</span>
+          <span>{formatTimeOnly(appointment.startTime, appointment.endTime)}</span>
+        </div>
+        <div className="flex flex-wrap gap-x-3 gap-y-0.5 text-sm text-muted-foreground">
+          <span>{appointment.serviceName}</span>
+          {appointment.staffName && <span>· {appointment.staffName}</span>}
+          <span className="font-medium text-foreground">
+            {formatPrice(appointment.priceSnapshot, appointment.currency)}
+          </span>
+        </div>
+      </div>
+      <Button
+        type="button"
+        variant="outline"
+        size="sm"
+        className="shrink-0"
+        onClick={() => onSelect(appointment)}
+      >
+        Detay
+      </Button>
+    </div>
+  );
+}
+
+/** Viewport genişliğini izler — FullCalendar başlangıç görünümünü belirlemek için */
+function useIsMobile(breakpoint = 768) {
+  const [isMobile, setIsMobile] = useState(() => window.innerWidth < breakpoint);
+
+  useEffect(() => {
+    const handler = () => setIsMobile(window.innerWidth < breakpoint);
+    window.addEventListener('resize', handler);
+    return () => window.removeEventListener('resize', handler);
+  }, [breakpoint]);
+
+  return isMobile;
+}
 
 export default function BusinessAppointmentsPage() {
   const queryClient = useQueryClient();
   const today = getTodayDateString();
+  const isMobile = useIsMobile();
+  const calendarRef = useRef<FullCalendar>(null);
 
   const { business, isLoading: isBusinessLoading, isError: isBusinessError, error: businessError } =
     useMyBusiness();
@@ -442,31 +508,28 @@ export default function BusinessAppointmentsPage() {
   const [selectedAppointment, setSelectedAppointment] =
     useState<AppointmentSummary | null>(null);
 
-  const queryParams = useMemo((): GetBusinessAppointmentsParams | undefined => {
-    if (!business?.id) {
-      return undefined;
-    }
+  // FIX: rangeStart/rangeEnd (ISO OffsetDateTime) kullan
+  const queryParams = useMemo(() => {
+    if (!business?.id) return undefined;
 
     if (viewMode === 'calendar') {
-      if (!calendarRange) {
-        return undefined;
-      }
+      if (!calendarRange) return undefined;
       return {
-        startDate: calendarRange.startDate,
-        endDate: calendarRange.endDate,
+        rangeStart: toRangeStart(calendarRange.startDate),
+        rangeEnd: toRangeEnd(calendarRange.endDate),
       };
     }
 
     return {
-      startDate: listStartDate,
-      endDate: listEndDate,
+      rangeStart: toRangeStart(listStartDate),
+      rangeEnd: toRangeEnd(listEndDate),
       status: getApiStatusFilter(statusFilter),
     };
   }, [business?.id, viewMode, calendarRange, listStartDate, listEndDate, statusFilter]);
 
   const appointmentsQuery = useQuery({
     queryKey: ['businessAppointments', business?.id, queryParams, viewMode],
-    queryFn: () => getBusinessAppointments(business!.id, queryParams),
+    queryFn: () => getBusinessAppointments(business!.id, queryParams!),
     enabled: Boolean(business?.id && queryParams),
   });
 
@@ -520,72 +583,31 @@ export default function BusinessAppointmentsPage() {
     setSelectedAppointment(props.appointment);
   };
 
-  const columns = useMemo(
-    () => [
-      columnHelper.display({
-        id: 'datetime',
-        header: 'Tarih/Saat',
-        cell: ({ row }) =>
-          formatDateTimeRange(row.original.startTime, row.original.endTime),
-      }),
-      columnHelper.accessor('customerName', { header: 'Müşteri' }),
-      columnHelper.accessor('serviceName', { header: 'Hizmet' }),
-      columnHelper.accessor('staffName', {
-        header: 'Personel',
-        cell: ({ getValue }) => getValue() ?? '—',
-      }),
-      columnHelper.accessor('status', {
-        header: 'Durum',
-        cell: ({ getValue }) => <StatusBadge status={getValue()} />,
-      }),
-      columnHelper.display({
-        id: 'price',
-        header: 'Fiyat',
-        cell: ({ row }) =>
-          formatPrice(row.original.priceSnapshot, row.original.currency),
-      }),
-      columnHelper.display({
-        id: 'actions',
-        header: 'İşlemler',
-        cell: ({ row }) => (
-          <Button
-            type="button"
-            variant="outline"
-            size="sm"
-            onClick={() => setSelectedAppointment(row.original)}
-          >
-            Detay
-          </Button>
-        ),
-      }),
-    ],
-    [],
-  );
-
-  const table = useReactTable({
-    data: filteredAppointments,
-    columns,
-    getCoreRowModel: getCoreRowModel(),
-  });
-
   return (
-    <div className="space-y-6">
-      <div className="flex items-center justify-between">
-        <h1 className="text-3xl font-bold tracking-tight">Randevular</h1>
+    <div className="space-y-4 md:space-y-6">
+      {/* Başlık + görünüm geçiş butonları */}
+      <div className="flex flex-wrap items-center justify-between gap-3">
+        <h1 className="text-2xl font-bold tracking-tight md:text-3xl">Randevular</h1>
         <div className="flex gap-2">
           <Button
             type="button"
             variant={viewMode === 'calendar' ? 'default' : 'outline'}
+            size="sm"
             onClick={() => setViewMode('calendar')}
+            className="flex items-center gap-1.5"
           >
-            Takvim Görünümü
+            <CalendarDays className="size-4" />
+            <span className="hidden sm:inline">Takvim</span>
           </Button>
           <Button
             type="button"
             variant={viewMode === 'list' ? 'default' : 'outline'}
+            size="sm"
             onClick={() => setViewMode('list')}
+            className="flex items-center gap-1.5"
           >
-            Liste Görünümü
+            <List className="size-4" />
+            <span className="hidden sm:inline">Liste</span>
           </Button>
         </div>
       </div>
@@ -601,9 +623,10 @@ export default function BusinessAppointmentsPage() {
 
       {business && !isBusinessLoading && (
         <>
+          {/* ===== TAKVİM GÖRÜNÜMÜ ===== */}
           {viewMode === 'calendar' && (
             <Card>
-              <CardContent className="pt-6">
+              <CardContent className="p-2 pt-4 sm:p-6">
                 {appointmentsQuery.isLoading && (
                   <LoadingSpinner label="Randevular yükleniyor..." />
                 )}
@@ -619,15 +642,25 @@ export default function BusinessAppointmentsPage() {
 
                 <div className={cn(appointmentsQuery.isLoading && 'hidden')}>
                   <FullCalendar
+                    ref={calendarRef}
                     plugins={[dayGridPlugin, timeGridPlugin, interactionPlugin]}
-                    initialView="timeGridWeek"
+                    // Mobilde timeGridDay, masaüstünde timeGridWeek
+                    initialView={isMobile ? 'timeGridDay' : 'timeGridWeek'}
                     locale={trLocale}
-                    headerToolbar={{
-                      left: 'prev,next today',
-                      center: 'title',
-                      right: 'dayGridMonth,timeGridWeek,timeGridDay',
-                    }}
-                    height={720}
+                    headerToolbar={
+                      isMobile
+                        ? {
+                            left: 'prev,next',
+                            center: 'title',
+                            right: 'today',
+                          }
+                        : {
+                            left: 'prev,next today',
+                            center: 'title',
+                            right: 'dayGridMonth,timeGridWeek,timeGridDay',
+                          }
+                    }
+                    height={isMobile ? 600 : 720}
                     events={calendarEvents}
                     datesSet={handleDatesSet}
                     eventClick={handleEventClick}
@@ -641,28 +674,32 @@ export default function BusinessAppointmentsPage() {
             </Card>
           )}
 
+          {/* ===== LİSTE GÖRÜNÜMÜ ===== */}
           {viewMode === 'list' && (
             <div className="space-y-4">
-              <div className="flex flex-wrap items-end gap-4">
-                <div className="space-y-2">
+              {/* Filtreler */}
+              <div className="flex flex-wrap items-end gap-3">
+                <div className="space-y-1.5">
                   <Label htmlFor="list-start-date">Başlangıç</Label>
                   <Input
                     id="list-start-date"
                     type="date"
                     value={listStartDate}
                     onChange={(event) => setListStartDate(event.target.value)}
+                    className="w-40"
                   />
                 </div>
-                <div className="space-y-2">
+                <div className="space-y-1.5">
                   <Label htmlFor="list-end-date">Bitiş</Label>
                   <Input
                     id="list-end-date"
                     type="date"
                     value={listEndDate}
                     onChange={(event) => setListEndDate(event.target.value)}
+                    className="w-40"
                   />
                 </div>
-                <div className="space-y-2">
+                <div className="space-y-1.5">
                   <Label>Durum</Label>
                   <Select
                     value={statusFilter}
@@ -670,7 +707,7 @@ export default function BusinessAppointmentsPage() {
                       setStatusFilter(value as StatusFilter)
                     }
                   >
-                    <SelectTrigger className="w-[180px]">
+                    <SelectTrigger className="w-[160px]">
                       <SelectValue placeholder="Durum seçin" />
                     </SelectTrigger>
                     <SelectContent>
@@ -685,67 +722,41 @@ export default function BusinessAppointmentsPage() {
                 </div>
               </div>
 
-              <Card>
-                <CardContent className="p-0">
-                  {appointmentsQuery.isLoading && (
-                    <LoadingSpinner label="Randevular yükleniyor..." />
+              {/* Randevu Listesi — Kart görünümü (mobil + masaüstü) */}
+              {appointmentsQuery.isLoading && (
+                <LoadingSpinner label="Randevular yükleniyor..." />
+              )}
+
+              {appointmentsQuery.isError && (
+                <p className="text-sm text-destructive" role="alert">
+                  {getErrorMessage(
+                    appointmentsQuery.error,
+                    'Randevular yüklenirken bir hata oluştu.',
                   )}
+                </p>
+              )}
 
-                  {appointmentsQuery.isError && (
-                    <p className="p-6 text-sm text-destructive" role="alert">
-                      {getErrorMessage(
-                        appointmentsQuery.error,
-                        'Randevular yüklenirken bir hata oluştu.',
-                      )}
-                    </p>
-                  )}
+              {!appointmentsQuery.isLoading &&
+                !appointmentsQuery.isError &&
+                filteredAppointments.length === 0 && (
+                  <p className="py-12 text-center text-sm text-muted-foreground">
+                    Seçilen kriterlere uygun randevu bulunmuyor.
+                  </p>
+                )}
 
-                  {!appointmentsQuery.isLoading &&
-                    !appointmentsQuery.isError &&
-                    filteredAppointments.length === 0 && (
-                      <p className="py-12 text-center text-sm text-muted-foreground">
-                        Seçilen kriterlere uygun randevu bulunmuyor.
-                      </p>
-                    )}
-
-                  {!appointmentsQuery.isLoading &&
-                    !appointmentsQuery.isError &&
-                    filteredAppointments.length > 0 && (
-                      <Table>
-                        <TableHeader>
-                          {table.getHeaderGroups().map((headerGroup) => (
-                            <TableRow key={headerGroup.id}>
-                              {headerGroup.headers.map((header) => (
-                                <TableHead key={header.id}>
-                                  {header.isPlaceholder
-                                    ? null
-                                    : flexRender(
-                                        header.column.columnDef.header,
-                                        header.getContext(),
-                                      )}
-                                </TableHead>
-                              ))}
-                            </TableRow>
-                          ))}
-                        </TableHeader>
-                        <TableBody>
-                          {table.getRowModel().rows.map((row) => (
-                            <TableRow key={row.id}>
-                              {row.getVisibleCells().map((cell) => (
-                                <TableCell key={cell.id}>
-                                  {flexRender(
-                                    cell.column.columnDef.cell,
-                                    cell.getContext(),
-                                  )}
-                                </TableCell>
-                              ))}
-                            </TableRow>
-                          ))}
-                        </TableBody>
-                      </Table>
-                    )}
-                </CardContent>
-              </Card>
+              {!appointmentsQuery.isLoading &&
+                !appointmentsQuery.isError &&
+                filteredAppointments.length > 0 && (
+                  <div className="space-y-3">
+                    {filteredAppointments.map((appointment) => (
+                      <AppointmentListCard
+                        key={appointment.id}
+                        appointment={appointment}
+                        onSelect={setSelectedAppointment}
+                      />
+                    ))}
+                  </div>
+                )}
             </div>
           )}
 

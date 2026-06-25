@@ -15,11 +15,19 @@ export interface RefreshTokenResponse {
   refreshToken?: string;
 }
 
+/**
+ * Kullanıcı girişi.
+ * @param email  - @ içeriyorsa dolu gelir, telefon ile girişte boş string.
+ * @param phone  - @ içermiyorsa dolu gelir, email ile girişte boş string.
+ * @param password - Kullanıcı şifresi.
+ */
 export async function login(
+  email: string,
   phone: string,
   password: string,
 ): Promise<ApiResponse<LoginResponse>> {
   return api.post<unknown, ApiResponse<LoginResponse>>('/auth/login', {
+    email,
     phone,
     password,
   });
