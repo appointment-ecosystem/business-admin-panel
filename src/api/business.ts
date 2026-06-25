@@ -244,12 +244,18 @@ export async function deleteHoliday(
   await api.delete(`/businesses/${businessId}/holidays/${holidayId}`);
 }
 
+type RawAppointment = Omit<AppointmentSummary, 'customerId'> & { userId: string };
+
 export async function getBusinessAppointments(
   businessId: string,
   params?: GetBusinessAppointmentsParams,
 ): Promise<ApiResponse<AppointmentSummary[]>> {
-  return api.get<unknown, ApiResponse<AppointmentSummary[]>>(
+  const response = await api.get<unknown, ApiResponse<RawAppointment[]>>(
     `/appointments/business/${businessId}`,
     { params },
   );
+  return {
+    ...response,
+    data: response.data.map(({ userId, ...rest }) => ({ ...rest, customerId: userId })),
+  };
 }

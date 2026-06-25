@@ -160,6 +160,7 @@ export interface HolidayRequest {
 /** Dashboard için randevu özeti */
 export interface AppointmentSummary {
   id: string;
+  customerId: string;
   customerName: string;
   customerPhone?: string; // Backend'den userPhone olarak gelir
   serviceName: string;

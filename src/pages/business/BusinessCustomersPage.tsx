@@ -17,6 +17,7 @@ import { cn } from '@/lib/utils';
 
 /** Türetilmiş müşteri özeti */
 interface CustomerSummary {
+  customerId: string;
   name: string;
   phone?: string;
   appointmentCount: number;
@@ -82,24 +83,22 @@ function LoadingSpinner({ label }: { label?: string }) {
 
 /** Randevu listesinden benzersiz müşteri özetleri türetir */
 function deriveCustomers(appointments: AppointmentSummary[]): CustomerSummary[] {
-  // customerName ile gruplama (phone varsa ilk bulunanı kullan)
   const map = new Map<string, CustomerSummary>();
 
   for (const appt of appointments) {
-    const key = appt.customerName.trim().toLowerCase();
+    const key = appt.customerId;
     const existing = map.get(key);
     if (existing) {
       existing.appointmentCount += 1;
-      // En son randevuyu güncelle
       if (appt.startTime > existing.lastAppointmentDate) {
         existing.lastAppointmentDate = appt.startTime;
       }
-      // Telefon henüz yoksa ekle
       if (!existing.phone && appt.customerPhone) {
         existing.phone = appt.customerPhone;
       }
     } else {
       map.set(key, {
+        customerId: appt.customerId,
         name: appt.customerName,
         phone: appt.customerPhone,
         appointmentCount: 1,
@@ -286,7 +285,7 @@ export default function BusinessCustomersPage() {
               ) : (
                 <div className="space-y-3">
                   {filteredCustomers.map((customer) => (
-                    <CustomerCard key={customer.name} customer={customer} />
+                    <CustomerCard key={customer.customerId} customer={customer} />
                   ))}
                 </div>
               )}
