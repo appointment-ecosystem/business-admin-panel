@@ -1,9 +1,10 @@
 // Bu dosya, işletme paneli için responsive layout bileşenidir.
 // Masaüstünde: sabit 240px sidebar + scroll edilebilir içerik alanı
 // Mobilde: üst header (hamburger) + drawer overlay menü + alt bottom nav bar
-import { useState } from 'react';
+import { useEffect, useState } from 'react';
 import { NavLink, Outlet, useNavigate } from 'react-router-dom';
 import {
+  Bell,
   Building2,
   CalendarDays,
   Clock,
@@ -17,10 +18,82 @@ import {
   X,
   type LucideIcon,
 } from 'lucide-react';
+import { getToken, onMessage } from 'firebase/messaging';
+import { toast } from 'sonner';
 import { logout } from '@/api/auth';
+import api from '@/api/axios';
+import { messaging } from '@/lib/firebase';
 import { useAuthStore } from '@/store/authStore';
+import { useFcmToken } from '@/hooks/useFcmToken';
 import { cn } from '@/lib/utils';
 import { Button } from '@/components/ui/button';
+
+const FCM_TOKEN_KEY = 'fcm_token';
+
+function NotificationBanner() {
+  const user = useAuthStore((state) => state.user);
+  const [permission, setPermission] = useState<NotificationPermission | null>(
+    () => ('Notification' in window ? Notification.permission : null),
+  );
+  const [dismissed, setDismissed] = useState(false);
+
+  const isBusiness =
+    user?.role === 'BUSINESS_OWNER' || user?.role === 'BUSINESS_EMPLOYEE';
+
+  // Uygulama açıkken gelen bildirimleri sonner toast ile göster
+  useEffect(() => {
+    if (permission !== 'granted' || !isBusiness) return;
+    return onMessage(messaging, (payload) => {
+      toast(payload.notification?.title ?? 'Yeni Bildirim', {
+        description: payload.notification?.body,
+      });
+    });
+  }, [permission, isBusiness]);
+
+  const handleRequest = async () => {
+    const result = await Notification.requestPermission();
+    setPermission(result);
+    if (result !== 'granted') return;
+    try {
+      const registration = await navigator.serviceWorker.ready;
+      const token = await getToken(messaging, {
+        vapidKey: import.meta.env.VITE_FIREBASE_VAPID_KEY,
+        serviceWorkerRegistration: registration,
+      });
+      const stored = localStorage.getItem(FCM_TOKEN_KEY);
+      if (token !== stored) {
+        await api.post('/device-tokens/register', { token, platform: 'WEB' });
+        localStorage.setItem(FCM_TOKEN_KEY, token);
+      }
+    } catch {
+      // Token alınamazsa sessizce geç
+    }
+  };
+
+  if (!isBusiness || permission !== 'default' || dismissed) return null;
+
+  return (
+    <div className="flex items-center gap-3 border-b bg-blue-50 px-4 py-2 text-sm text-blue-800">
+      <Bell className="size-4 shrink-0" aria-hidden />
+      <span className="flex-1">Randevu bildirimlerini almak için izin verin.</span>
+      <button
+        type="button"
+        onClick={() => void handleRequest()}
+        className="rounded-md bg-blue-600 px-3 py-1 text-xs font-medium text-white hover:bg-blue-700 focus-visible:outline focus-visible:outline-2 focus-visible:outline-offset-2 focus-visible:outline-blue-600"
+      >
+        Randevu bildirimlerini aç
+      </button>
+      <button
+        type="button"
+        onClick={() => setDismissed(true)}
+        className="rounded-lg p-1 text-blue-600 hover:text-blue-800"
+        aria-label="Kapat"
+      >
+        <X className="size-4" />
+      </button>
+    </div>
+  );
+}
 
 interface NavItem {
   to: string;
@@ -98,6 +171,7 @@ export default function BusinessLayout() {
   const user = useAuthStore((state) => state.user);
   const clearAuth = useAuthStore((state) => state.clearAuth);
   const [drawerOpen, setDrawerOpen] = useState(false);
+  useFcmToken();
 
   const isEmployee = user?.role === 'BUSINESS_EMPLOYEE';
 
@@ -207,6 +281,9 @@ export default function BusinessLayout() {
           </button>
           <span className="font-semibold text-sm">İşletme Paneli</span>
         </header>
+
+        {/* BİLDİRİM İZİN BANNER'I */}
+        <NotificationBanner />
 
         {/* SAYFA İÇERİĞİ */}
         {/* pb-20 = bottom nav için boşluk bırak (mobil) */}
